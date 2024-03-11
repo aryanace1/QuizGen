@@ -29,7 +29,7 @@ class IncorrectAnswerGenerator:
         try:
             for sim_word, _ in self.model.most_similar(word, topn=100):
                 sim_word_pos = self.pos_tagger([sim_word])[0][1]
-                if sim_word_pos == pos_tag and sim_word != word:
+                if sim_word_pos == pos_tag:
                     similar_words.append(sim_word)
                 if len(similar_words) >= 3:
                     break
@@ -38,21 +38,31 @@ class IncorrectAnswerGenerator:
         return similar_words
 
     def get_all_options_dict(self, answer, num_options):
-        ''' This method returns a dict
-        of 'num_options' options out of
-        which one is correct and is the answer
-        '''
         options_dict = dict()
-        similar_words = self.get_similar_words_same_pos(answer, self.pos_tagger([answer])[0][1])
-        for i in range(1, num_options + 1):
-            if i == num_options:
-                options_dict[i] = answer
-            else:
-                options_dict[i] = random.choice(similar_words) if similar_words else answer
+
+        # Collect all words in the vocabulary
+        all_words = self.all_words.copy()
+
+        # Check if answer is in all_words before attempting to remove it
+        if answer in all_words:
+            all_words.remove(answer)
+
+        # Shuffle all words to randomize options
+        random.shuffle(all_words)
+
+        # Ensure that we have enough words to provide incorrect options
+        num_all_words = len(all_words)
+        num_incorrect_options = min(num_options - 1, num_all_words)
+
+        # Add incorrect options to the options dictionary
+        for i in range(1, num_incorrect_options + 1):
+            options_dict[i] = all_words[i - 1]
+
+        # Fill in remaining options with the correct answer
+        for i in range(num_incorrect_options + 1, num_options + 1):
+            options_dict[i] = answer
 
         return options_dict
-
-
 # Example usage:
 # document = "This is a sample document. It contains some words."
 # generator = IncorrectAnswerGenerator(document)
